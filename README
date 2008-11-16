@@ -1,4 +1,4 @@
-This file contains an interface to git commands which are not
+;; This file contains an interface to git commands which are not
 (currently) part of git.el. Primarily, this is a view of the git commit
 history with the ability to mark ranges and/or single commits and
 operate on them. Mutiple branches/tags/ref interfaces can be active at
@@ -21,11 +21,11 @@ maximum number of commits to show.
 
 `M-x egit-dir' will show commits related to files within a directory
 
-egit is currently useful for browsing the history. It has only two
-operations implemented (cherry-pick and revert) -- and those are
-implemented only minimally. The framework for operating on a single or
-multiple commits (that have been marked) already exists, so adding new
-git commands should be relatively easy.
+egit is currently useful for browsing the history. It has only a few
+operations implemented (cherry-pick, revert, tag, delete tag) -- and
+those are implemented only minimally. The framework for operating on a
+single or multiple commits (that have been marked) already exists, so
+adding new git commands should be relatively easy.
 
 There isn't a way to specify a range of commits (unless you use the
 marked commits to do so). There should probably be a dedicated method of
@@ -47,13 +47,13 @@ TODO
  - graphical rep of a commit range (like the marks)
  - git reset functions
  - branch creation at a commit
- - tagging / untagging
  - patch creation from a set of commits
  - show list of authors/sign-offs related to commits
  - make occur more useful
  - speed up 
  - add "more" buttons to end of ewoc to load more commits
  - lazy resolve parent commits
+ - make delete tag default to one of the current commit tags
 
 WISH
  - incrementally load commits 

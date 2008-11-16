@@ -43,11 +43,11 @@
 ;;
 ;; `M-x egit-dir' will show commits related to files within a directory
 ;;
-;; egit is currently useful for browsing the history. It has only two
-;; operations implemented (cherry-pick and revert) -- and those are
-;; implemented only minimally. The framework for operating on a single or
-;; multiple commits (that have been marked) already exists, so adding new
-;; git commands should be relatively easy.
+;; egit is currently useful for browsing the history. It has only a few
+;; operations implemented (cherry-pick, revert, tag, delete tag) -- and
+;; those are implemented only minimally. The framework for operating on a
+;; single or multiple commits (that have been marked) already exists, so
+;; adding new git commands should be relatively easy.
 ;;
 ;; There isn't a way to specify a range of commits (unless you use the
 ;; marked commits to do so). There should probably be a dedicated method of
@@ -69,13 +69,13 @@
 ;;  - graphical rep of a commit range (like the marks)
 ;;  - git reset functions
 ;;  - branch creation at a commit
-;;  - tagging / untagging
 ;;  - patch creation from a set of commits
 ;;  - show list of authors/sign-offs related to commits
 ;;  - make occur more useful
 ;;  - speed up 
 ;;  - add "more" buttons to end of ewoc to load more commits
 ;;  - lazy resolve parent commits
+;;  - make delete tag default to one of the current commit tags
 ;;
 ;; WISH
 ;;  - incrementally load commits 
@@ -91,6 +91,10 @@
 (defface egit-base-face
   '((t (:inherit 'variable-pitch))) "egit: base"
   :group 'egit)
+
+;(defface egit-base-face
+  ;'((t ())) "egit: base"
+  ;:group 'egit)
   
 (defface egit-tag-face 
   '((t (:inherit 'egit-base-face :background "yellow" :box t))) "egit: tag"
@@ -115,6 +119,18 @@
 
 (defface egit-marked-face
   '((t (:inherit 'egit-base-face :background "orange" :box t))) "egit: marked"
+  :group 'egit)
+
+(defface egit-date-face
+  '((t (:inherit 'egit-base-face :foreground "grey25"))) "egit: date"
+  :group 'egit)
+
+(defface egit-subdued-date-face
+  '((t (:inherit 'egit-base-face :foreground "grey60"))) "egit: date subdued"
+  :group 'egit)
+
+(defface egit-id-face
+  '((t (:inherit 'fixed-pitch))) "egit: id"
   :group 'egit)
 
 (defface egit-file-name-face
@@ -176,7 +192,8 @@
   (let ((w (car (split-string line)))
         (c (> (length line) 1)))
     (cond 
-     ((and c (string= w "Date:")) (setf (egit--commit-date commit) (substring line 8 -1)))
+     ((and c (string= w "Date:")) (setf (egit--commit-date commit)
+                                        (date-to-time (substring line 8 -1))))
      ((and c (string= w "Author:")) (setf (egit--commit-author commit) (substring line 8 -1)))
      ((and c (string= w "Merge:")) (setf (egit--commit-merge commit) (substring line 7 -1)))
      ((and c (string-match "^commit " line)) nil)
@@ -355,16 +372,44 @@
       (setq i (+ i 1))
       (ewoc-enter-last ewoc c))))
 
+(defun egit-day-string (commit)
+  (format-time-string "%Y-%m-%d" (egit--commit-date commit)))
+
+(defun egit-same-day-commit (commit other)
+  "Returns t if the commit and the other commit are from the same day"
+  (if (or (stringp other) (stringp commit))
+      nil
+    (string= (egit-day-string commit)
+             (egit-day-string other))))
+
 (defun egit-pretty-printer (commit)
   "Display a commit for ewoc"
   (let* ((s (egit--commit-subject commit))
          (refs (egit--commit-refs commit))
          (mark (egit--commit-mark commit))
+         (date (egit--commit-date commit))
          (v s))
     (when egit-highlight-regex
       (dolist (l (egit--commit-comments commit))
         (when (string-match egit-highlight-regex l)
           (setq v (propertize v 'face 'egit-highlight-face)))))
+    (when egit-show-id
+      (setq v
+            (concat (propertize (egit--commit-id commit) 'face 'egit-id-face)
+                    " "
+                    v)))
+    (when egit-show-date
+      (let* ((parents (egit--commit-parents commit))
+             (same-day (and (= 1 (length parents))
+                            (egit-same-day-commit (car parents) commit))))
+        (setq v 
+              (concat 
+               (propertize (format-time-string "%Y-%m-%d" date) 'face
+                           (if same-day 'egit-subdued-date-face
+                             'egit-date-face))
+               (propertize (format-time-string " %T" date) 'face 'egit-date-face)
+               " "
+               v))))
     (insert (concat (if mark "* " "  ") v))))
 
 (defun egit-current-line-decoration ()
@@ -386,6 +431,20 @@
   (goto-char (line-beginning-position))
   (forward-line -1)
   (egit-show-current-line-info))
+
+(defun egit-show-commit-date ()
+  "Show commit dates in the commit history"
+  (interactive)
+  (setq egit-show-date (if egit-show-date nil t))
+  (save-excursion
+    (ewoc-refresh egit-ewoc)))
+
+(defun egit-show-commit-id ()
+  "Show commit id in the commit history"
+  (interactive)
+  (setq egit-show-id (if egit-show-id nil t))
+  (save-excursion
+    (ewoc-refresh egit-ewoc)))
 
 (defun egit-show-all-commit ()
   "Show commit with all of the comments"
@@ -425,7 +484,7 @@
          (ncomments (length comments))
          (summary (egit--commit-subject commit))
          (merge (egit--commit-merge commit))
-         (date (egit--commit-date commit)))
+         (date (format-time-string "%b %d %T %Y %z" (egit--commit-date commit))))
     (egit-clear-other-windows)
     (let ((buffer (get-buffer-create egit-commit-buffer)))
       (set-buffer buffer)
@@ -597,6 +656,52 @@
               ))))
       (message "Cancelled")))
 
+(defun egit-tag (name)
+  "Tag the current commit"
+  (interactive
+   (let* ((tags (egit-get-tags))
+          (name (completing-read "Tag Name: " nil))
+          (exists (member name tags)))
+     (if (or (and exists
+                  (y-or-n-p (concat name " is already a tag. Force")))
+             (not exists))
+         (list name)
+       nil)))
+  (let* ((ann (read-string "Annotation: "))
+         (node (ewoc-locate egit-ewoc))
+         (commit (ewoc-data node))
+         (buffer (git-run-command-buffer egit-temp-buffer 
+                                         "tag" 
+                                         "-a" name 
+                                         (egit--commit-id commit) 
+                                         "-m" ann)))
+    (with-current-buffer buffer
+      (let* ((window (get-largest-window))
+             (new-window (split-window window)))
+        (set-window-buffer new-window buffer)
+        (select-window new-window)
+        (resize-temp-buffer-window)
+        (select-window window))))
+  (egit-refresh))
+
+(defun egit-delete-tag (name)
+  "Delete a tag"
+  (interactive
+   (let* ((tags (egit-get-tags))
+          (name (completing-read "Delete Tag: " tags nil t)))
+     (list name)))
+  (let ((buffer (git-run-command-buffer egit-temp-buffer 
+                                        "tag" 
+                                        "-d" name)))
+    (with-current-buffer buffer
+      (let* ((window (get-largest-window))
+             (new-window (split-window window)))
+        (set-window-buffer new-window buffer)
+        (select-window new-window)
+        (resize-temp-buffer-window)
+        (select-window window))))
+  (egit-refresh))
+
 (defun egit-show-current-line-info ()
   "Show current commit info"
   (interactive)
@@ -643,6 +748,10 @@
       (define-key map "m" 'egit-mark)
       (define-key map "u" 'egit-unmark)
       (define-key map "o" 'egit-occur)
+      (define-key map "D" 'egit-show-commit-date)
+      (define-key map "i" 'egit-show-commit-id)
+      (define-key map "t" 'egit-tag)
+      (define-key map "T" 'egit-delete-tag)
       (define-key map "" 'egit-show-all-commit)
       (define-key map [mouse-1] 'egit-mouse-click)
       (define-key map [up] 'egit-previous-line)
@@ -653,25 +762,41 @@
   (easy-menu-define egit-menu egit-mode-map
     "EGit Menu"
     `("EGit"
-      ["Show Comments"      egit-show-all-commit t]
-      ["Show Diffs"         egit-show-diff-commit t]
-      ["Show Files"         egit-show-files-commit t]
+      ["Display Date"    egit-show-commit-date [:selected '(lambda () egit-show-date)]]
+      ["Display SHA1"    egit-show-commit-id [:selected '(lambda () egit-show-id)]]
       "--------"
-      ["Revert"             egit-revert t]
-      ["Cherry-Pick"        egit-cherry-pick t]
+      ["Show Comments"   egit-show-all-commit t]
+      ["Show Diffs"      egit-show-diff-commit t]
+      ["Show Files"      egit-show-files-commit t]
       "--------"
-      ["Mark"               egit-mark t]
-      ["Unmark"             egit-unmark t]
+      ["Tag"             egit-tag t]
+      ["Delete Tag"      egit-delete-tag t]
+      "--------"
+      ["Revert"          egit-revert t]
+      ["Cherry-Pick"     egit-cherry-pick t]
+      "--------"
+      ["Mark"            egit-mark t]
+      ["Unmark"          egit-unmark t]
       ["Search/Highlight"   egit-occur t]
       "--------"
-      ["Refersh"            egit-refresh t]
+      ["Refersh"         egit-refresh t]
       "--------"
-      ["Quit"               egit-quit t]
+      ["Quit"            egit-quit t]
       )))
 
 (defun egit-resolve-parent (commit)
   (or (gethash commit egit-hash-map)
       commit))
+
+(defun egit-largest-commit-subject (commits)
+  "Find the largest line in the commit subjects"
+  (let ((max 0))
+    (dolist (c commits)
+      (let* ((subject (egit--commit-subject c))
+             (l (length subject)))
+        (when (> l max)
+          (setq max l))))
+    max))
 
 (defun egit-mode (commits ref dir n &optional file)
   "Mode for git commit logs"
@@ -687,6 +812,9 @@
   (make-local-variable 'egit-highlight-regex)
   (make-local-variable 'egit-hash-map)
   (make-local-variable 'egit-max-commits)
+  (make-local-variable 'egit-max-subject-length)
+  (make-local-variable 'egit-show-date)
+  (make-local-variable 'egit-show-id)
   (erase-buffer)
   (setq egit-hash-map (make-hash-table :test 'equal
                                        :size (length commits)))
@@ -715,6 +843,9 @@
         egit-log-file file
         egit-show-cherry-picked nil
         egit-highlight-regex nil
+        egit-show-date nil
+        egit-show-id nil
+        egit-max-subject-length (egit-largest-commit-subject commits)
         egit-ewoc (ewoc-create 'egit-pretty-printer)
         egit-current-overlay (make-overlay 0 0))
   (overlay-put egit-current-overlay 'face egit-current-line-face-overlay)
