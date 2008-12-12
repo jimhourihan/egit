@@ -328,6 +328,16 @@
         commits
       (list (ewoc-data (ewoc-locate egit-ewoc))))))
 
+(defun egit-get-full-name (infile)
+  "Returns the git full name for FILE"
+  (let ((file (expand-file-name infile)))
+    (git-run-command-buffer egit-temp-buffer "ls-files" "-z" "--full-name" "--" file)
+    (with-current-buffer egit-temp-buffer
+      (goto-char (point-min))
+      (replace-string " " "\n")
+      (goto-char (point-min))
+      (car (split-string (buffer-string))))))
+
 (defun egit-get-tags ()
   "Returns a list of tags"
   (interactive)
@@ -656,6 +666,54 @@
               ))))
       (message "Cancelled")))
 
+(defun egit-checkout-file-from-history (file doit)
+  "Checkout a file as it appears after a specific commit -- NOTE: this
+can fail if the file had a different name in the past"
+  (interactive
+   (let* ((commits (egit-get-selection))
+          (ncommits (length commits)))
+     (if (= ncommits 1)
+         (list 
+          (if egit-log-file
+              egit-log-file 
+            (read-file-name 
+             "File: " 
+             egit-repo-dir
+             egit-repo-dir
+             t))
+          t)
+       (list 'bad))))
+   (let ((commits (egit-get-selection))
+         (top egit-top)
+         (path (egit-get-full-name file)))
+     (if (and doit (not (eq doit 'bad)))
+         (dolist (c commits)
+           (egit-clear-other-windows)
+           (let ((buffer (git-run-command-buffer egit-temp-buffer
+                                                 "cat-file" "blob" 
+                                                 (concat
+                                                  (egit--commit-id c) ":"
+                                                  path))))
+             (with-current-buffer buffer
+               (let ((fname
+                      (concat path ".~"
+                              top "-"
+                              (format-time-string "%b-%d-%T-%Y~"
+                                                  (egit--commit-date
+                                                   c)))))
+                 (set-visited-file-name fname)
+                 (goto-char (point-min))
+                 (set-buffer-modified-p nil)
+                 (let* ((window (get-largest-window))
+                        (new-window (split-window window)))
+                   (set-window-buffer new-window buffer)
+                   (select-window new-window)
+                   (resize-temp-buffer-window)
+                   (select-window window))
+                 ))))
+       (message "Cancelled"))))
+   
+
 (defun egit-tag (name)
   "Tag the current commit"
   (interactive
@@ -774,6 +832,8 @@
       "--------"
       ["Revert"          egit-revert t]
       ["Cherry-Pick"     egit-cherry-pick t]
+      "--------"
+      ["Examine Historical File"  egit-checkout-file-from-history t]
       "--------"
       ["Mark"            egit-mark t]
       ["Unmark"          egit-unmark t]
@@ -925,6 +985,7 @@
              (current-branch (car branch-state)))
         (egit-mode (egit-parse-file-log 
                     (expand-file-name file)) current-branch dir 0 file)))))
+
 
 (defun egit (dir ref n)
   "Start up egit for DIR on REF (a branch, tag, or other ref) with at most
