@@ -833,7 +833,7 @@ can fail if the file had a different name in the past"
       ["Revert"          egit-revert t]
       ["Cherry-Pick"     egit-cherry-pick t]
       "--------"
-      ["Examine Historical File"  egit-checkout-file-from-history t]
+      ["Visit Historical File"  egit-checkout-file-from-history t]
       "--------"
       ["Mark"            egit-mark t]
       ["Unmark"          egit-unmark t]

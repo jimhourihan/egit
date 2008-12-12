@@ -27,6 +27,12 @@ those are implemented only minimally. The framework for operating on a
 single or multiple commits (that have been marked) already exists, so
 adding new git commands should be relatively easy.
 
+egit can visit a version of a file as it appeared relative to a
+commit. When viewing a branch history egit will prompt for the file. When
+viewing a file's history the current file is assumed. This facility breaks
+down if a file's content blob changed at some point (e.g., it was
+renamed). 
+
 There isn't a way to specify a range of commits (unless you use the
 marked commits to do so). There should probably be a dedicated method of
 creating a range to pass to git commands. It might be good to have a
