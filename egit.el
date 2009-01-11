@@ -799,7 +799,7 @@ can fail if the file had a different name in the past"
       (define-key map "p" 'egit-previous-line)
       (define-key map "f" 'egit-show-files-commit)
       (define-key map "c" 'egit-cherry-pick)
-      (define-key map "r" 'egit-refresh)
+      (define-key map "R" 'egit-revert)
       (define-key map "g" 'egit-refresh)
       (define-key map "d" 'egit-show-diff-commit)
       (define-key map "q" 'egit-quit)
@@ -810,6 +810,7 @@ can fail if the file had a different name in the past"
       (define-key map "i" 'egit-show-commit-id)
       (define-key map "t" 'egit-tag)
       (define-key map "T" 'egit-delete-tag)
+      (define-key map "v" 'egit-checkout-file-from-history)
       (define-key map "" 'egit-show-all-commit)
       (define-key map [mouse-1] 'egit-mouse-click)
       (define-key map [up] 'egit-previous-line)
@@ -839,7 +840,7 @@ can fail if the file had a different name in the past"
       ["Unmark"          egit-unmark t]
       ["Search/Highlight"   egit-occur t]
       "--------"
-      ["Refersh"         egit-refresh t]
+      ["Refresh"         egit-refresh t]
       "--------"
       ["Quit"            egit-quit t]
       )))
@@ -861,6 +862,7 @@ can fail if the file had a different name in the past"
 (defun egit-mode (commits ref dir n &optional file)
   "Mode for git commit logs"
   (interactive)
+  (setq buffer-read-only nil)
   (kill-all-local-variables)
   (buffer-disable-undo)
   (make-local-variable 'egit-commits)
@@ -989,23 +991,28 @@ can fail if the file had a different name in the past"
 
 (defun egit (dir ref n)
   "Start up egit for DIR on REF (a branch, tag, or other ref) with at most
-N commits shown"
+N commits shown. A prefix argument will query for all parameters otherwise
+  the default directory, branch, and unlimited commits will be displayed."
   (interactive
    (with-temp-buffer
-     (list 
-      (let ((dir (read-directory-name "Directory in repo: " nil nil t nil)))
-        (cd dir)
-        dir)
-      (let* ((branch-state (egit-get-branches))
-             (current-branch (car branch-state))
-             (all-tags (egit-get-tags))
-             (all-branches (car (cdr branch-state)))
-             (all-refs (append all-branches all-tags)))
-        (completing-read 
-         (concat "Ref (" current-branch "): ") 
-         all-refs
-         nil nil nil nil current-branch))
-      (read-number "Max number of commits to show or 0 for all " 0))))
+     (if (not current-prefix-arg)
+         (list default-directory
+               (car (egit-get-branches))
+               0)
+       (list 
+        (let ((dir (read-directory-name "Directory in repo: " nil nil t nil)))
+          (cd dir)
+          dir)
+        (let* ((branch-state (egit-get-branches))
+               (current-branch (car branch-state))
+               (all-tags (egit-get-tags))
+               (all-branches (car (cdr branch-state)))
+               (all-refs (append all-branches all-tags)))
+          (completing-read 
+           (concat "Ref (" current-branch "): ") 
+           all-refs
+           nil nil nil nil current-branch))
+        (read-number "Max number of commits to show or 0 for all " 0)))))
   (let ((buffer (get-buffer-create (format "*egit:%s*" ref))))
     (switch-to-buffer buffer)
     (cd (git-get-top-dir dir))
