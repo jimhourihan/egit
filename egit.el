@@ -35,9 +35,9 @@
 ;;      (autoload 'egit-file "egit" "Emacs git history file" t)
 ;;      (autoload 'egit-dir "egit" "Emacs git history directory" t)
 ;;
-;; `M-x egit' shows commit history for a given branch, tag, or other
-;; ref. You supply a directory (to identify the repo), the ref, and a
-;; maximum number of commits to show.
+;; `M-x egit' shows commit history for a given branch, tag, or other ref. With
+;; a prefix argument, you supply a directory (to identify the repo), the ref,
+;; and a maximum number of commits to show -- e.g., M-x C-u egit 
 ;;
 ;; `M-x egit-file' will show commits related to a specific file
 ;;
