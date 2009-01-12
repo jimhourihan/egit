@@ -129,6 +129,14 @@
   '((t (:inherit 'egit-base-face :foreground "grey60"))) "egit: date subdued"
   :group 'egit)
 
+(defface egit-author-face
+  '((t (:inherit 'fixed-pitch :foreground "grey25"))) "egit: date"
+  :group 'egit)
+
+(defface egit-subdued-author-face
+  '((t (:inherit 'fixed-pitch :foreground "grey60"))) "egit: date subdued"
+  :group 'egit)
+
 (defface egit-id-face
   '((t (:inherit 'fixed-pitch))) "egit: id"
   :group 'egit)
@@ -210,6 +218,17 @@
 
 (defun egit-heading (s)
   (propertize s 'face 'egit-heading-face))
+
+(defun egit-nice-human-name (n)
+  (string-match "\\(.*\\)<.*>" n)
+  (let* ((N 12)
+         (person (match-string 1 n))
+         (parts (split-string person))
+         (abbrev (mapconcat 'concat parts " "))
+         (l (length abbrev)))
+    (if (> l N)
+        (substring abbrev 0 N)
+      (concat (make-string (- N l) ? ) abbrev))))
 
 (defun egit-propertize-ref (s)
   (cond 
@@ -398,6 +417,7 @@
          (refs (egit--commit-refs commit))
          (mark (egit--commit-mark commit))
          (date (egit--commit-date commit))
+         (author (egit--commit-author commit))
          (v s))
     (when egit-highlight-regex
       (dolist (l (egit--commit-comments commit))
@@ -420,6 +440,11 @@
                (propertize (format-time-string " %T" date) 'face 'egit-date-face)
                " "
                v))))
+    (when egit-show-author
+      (setq v (concat (propertize (egit-nice-human-name author) 'face
+                                  'egit-author-face)
+                      " " 
+                      v)))
     (insert (concat (if mark "* " "  ") v))))
 
 (defun egit-current-line-decoration ()
@@ -446,6 +471,13 @@
   "Show commit dates in the commit history"
   (interactive)
   (setq egit-show-date (if egit-show-date nil t))
+  (save-excursion
+    (ewoc-refresh egit-ewoc)))
+
+(defun egit-show-commit-author ()
+  "Show commit author in the commit history"
+  (interactive)
+  (setq egit-show-author (if egit-show-author nil t))
   (save-excursion
     (ewoc-refresh egit-ewoc)))
 
@@ -807,6 +839,7 @@ can fail if the file had a different name in the past"
       (define-key map "u" 'egit-unmark)
       (define-key map "o" 'egit-occur)
       (define-key map "D" 'egit-show-commit-date)
+      (define-key map "A" 'egit-show-commit-author)
       (define-key map "i" 'egit-show-commit-id)
       (define-key map "t" 'egit-tag)
       (define-key map "T" 'egit-delete-tag)
@@ -822,6 +855,7 @@ can fail if the file had a different name in the past"
     "EGit Menu"
     `("EGit"
       ["Display Date"    egit-show-commit-date [:selected '(lambda () egit-show-date)]]
+      ["Display Author"  egit-show-commit-author [:selected '(lambda () egit-show-author)]]
       ["Display SHA1"    egit-show-commit-id [:selected '(lambda () egit-show-id)]]
       "--------"
       ["Show Comments"   egit-show-all-commit t]
@@ -863,6 +897,7 @@ can fail if the file had a different name in the past"
   "Mode for git commit logs"
   (interactive)
   (setq buffer-read-only nil)
+  (erase-buffer)
   (kill-all-local-variables)
   (buffer-disable-undo)
   (make-local-variable 'egit-commits)
@@ -876,8 +911,8 @@ can fail if the file had a different name in the past"
   (make-local-variable 'egit-max-commits)
   (make-local-variable 'egit-max-subject-length)
   (make-local-variable 'egit-show-date)
+  (make-local-variable 'egit-show-author)
   (make-local-variable 'egit-show-id)
-  (erase-buffer)
   (setq egit-hash-map (make-hash-table :test 'equal
                                        :size (length commits)))
   ; put all of the commits in a hash table keyed on sha1
@@ -906,6 +941,7 @@ can fail if the file had a different name in the past"
         egit-show-cherry-picked nil
         egit-highlight-regex nil
         egit-show-date nil
+        egit-show-author nil
         egit-show-id nil
         egit-max-subject-length (egit-largest-commit-subject commits)
         egit-ewoc (ewoc-create 'egit-pretty-printer)
