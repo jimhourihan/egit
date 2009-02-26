@@ -198,12 +198,15 @@
 
 (defun egit-parse-commit-line (line commit)
   (let ((w (car (split-string line)))
-        (c (> (length line) 1)))
+        (c (> (length line) 1))
+        (nwsp (not (equal (aref line 0) ? ))))
     (cond 
-     ((and c (string= w "Date:")) (setf (egit--commit-date commit)
-                                        (date-to-time (substring line 8 -1))))
-     ((and c (string= w "Author:")) (setf (egit--commit-author commit) (substring line 8 -1)))
-     ((and c (string= w "Merge:")) (setf (egit--commit-merge commit) (substring line 7 -1)))
+     ((and nwsp c (string= w "Date:")) 
+      (setf (egit--commit-date commit) (date-to-time (substring line 8 -1))))
+     ((and nwsp c (string= w "Author:")) 
+      (setf (egit--commit-author commit) (substring line 8 -1)))
+     ((and nwsp c (string= w "Merge:")) 
+      (setf (egit--commit-merge commit) (substring line 7 -1)))
      ((and c (string-match "^commit " line)) nil)
      (t 
       (let ((comments (egit--commit-comments commit))
@@ -940,8 +943,8 @@ can fail if the file had a different name in the past"
         egit-log-file file
         egit-show-cherry-picked nil
         egit-highlight-regex nil
-        egit-show-date nil
-        egit-show-author nil
+        egit-show-date t
+        egit-show-author t
         egit-show-id nil
         egit-max-subject-length (egit-largest-commit-subject commits)
         egit-ewoc (ewoc-create 'egit-pretty-printer)
