@@ -440,7 +440,9 @@
                (propertize (format-time-string "%Y-%m-%d" date) 'face
                            (if same-day 'egit-subdued-date-face
                              'egit-date-face))
-               (propertize (format-time-string " %T" date) 'face 'egit-date-face)
+               (if egit-show-time
+                   (propertize (format-time-string " %T" date) 'face 'egit-date-face)
+                 "")
                " "
                v))))
     (when egit-show-author
@@ -474,6 +476,14 @@
   "Show commit dates in the commit history"
   (interactive)
   (setq egit-show-date (if egit-show-date nil t))
+  (save-excursion
+    (ewoc-refresh egit-ewoc)))
+
+(defun egit-show-commit-time ()
+  "Show commit times (and dates) in the commit history"
+  (interactive)
+  (setq egit-show-time (if egit-show-time nil t))
+  (when egit-show-time (setq egit-show-date t))
   (save-excursion
     (ewoc-refresh egit-ewoc)))
 
@@ -858,6 +868,7 @@ can fail if the file had a different name in the past"
     "EGit Menu"
     `("EGit"
       ["Display Date"    egit-show-commit-date [:selected '(lambda () egit-show-date)]]
+      ["Display Date+Time"  egit-show-commit-time [:selected '(lambda () egit-show-time)]]
       ["Display Author"  egit-show-commit-author [:selected '(lambda () egit-show-author)]]
       ["Display SHA1"    egit-show-commit-id [:selected '(lambda () egit-show-id)]]
       "--------"
@@ -914,6 +925,7 @@ can fail if the file had a different name in the past"
   (make-local-variable 'egit-max-commits)
   (make-local-variable 'egit-max-subject-length)
   (make-local-variable 'egit-show-date)
+  (make-local-variable 'egit-show-time)
   (make-local-variable 'egit-show-author)
   (make-local-variable 'egit-show-id)
   (setq egit-hash-map (make-hash-table :test 'equal
@@ -944,6 +956,7 @@ can fail if the file had a different name in the past"
         egit-show-cherry-picked nil
         egit-highlight-regex nil
         egit-show-date t
+        egit-show-time nil
         egit-show-author t
         egit-show-id nil
         egit-max-subject-length (egit-largest-commit-subject commits)
