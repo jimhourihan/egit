@@ -95,6 +95,21 @@
 ;(defface egit-base-face
   ;'((t ())) "egit: base"
   ;:group 'egit)
+
+(defface egit-bisect-unknown-face 
+  '((t (:inherit 'fixed-pitch :background "light blue" :box nil))) 
+  "egit: bisect unknown"
+  :group 'egit)
+
+(defface egit-bisect-good-face 
+  '((t (:inherit 'fixed-pitch :background "pale green" :box nil))) 
+  "egit: bisect good"
+  :group 'egit)
+
+(defface egit-bisect-bad-face 
+  '((t (:inherit 'fixed-pitch :background "tomato" :box nil))) 
+  "egit: bisect bad"
+  :group 'egit)
   
 (defface egit-tag-face 
   '((t (:inherit 'egit-base-face :background "yellow" :box t))) "egit: tag"
@@ -187,6 +202,7 @@
   date 
   merge
   comments
+  bisect-state
   mark)
 
 (defvar egit-log-buffer " *egit-log*")
@@ -339,6 +355,12 @@
           (max-number rest biggest)))
     biggest))
 
+(defun egit-update-ewoc ()
+  (let ((node (ewoc-locate egit-ewoc)))
+    (ewoc-refresh egit-ewoc)
+    (ewoc-goto-node egit-ewoc node))
+  (egit-current-line-decoration))
+
 (defun egit-get-selection ()
   "Return a list of marked commits (or the current if none are marked)"
   (interactive)
@@ -420,12 +442,25 @@
          (refs (egit--commit-refs commit))
          (mark (egit--commit-mark commit))
          (date (egit--commit-date commit))
+         (bisect-state (egit--commit-bisect-state commit))
          (author (egit--commit-author commit))
          (v s))
     (when egit-highlight-regex
       (dolist (l (egit--commit-comments commit))
         (when (string-match egit-highlight-regex l)
           (setq v (propertize v 'face 'egit-highlight-face)))))
+    (when egit-bisect-mode
+      (setq v 
+            (concat 
+             (cond 
+              ((eql bisect-state 'good)
+               (propertize "+" 'face 'egit-bisect-good-face))
+              ((eql bisect-state 'bad) 
+               (propertize "-" 'face 'egit-bisect-bad-face))
+              (bisect-state 
+               (propertize "?" 'face 'egit-bisect-unknown-face))
+              )
+             " " v)))
     (when egit-show-id
       (setq v
             (concat (propertize (egit--commit-id commit) 'face 'egit-id-face)
@@ -476,30 +511,26 @@
   "Show commit dates in the commit history"
   (interactive)
   (setq egit-show-date (if egit-show-date nil t))
-  (save-excursion
-    (ewoc-refresh egit-ewoc)))
+  (egit-update-ewoc))
 
 (defun egit-show-commit-time ()
   "Show commit times (and dates) in the commit history"
   (interactive)
   (setq egit-show-time (if egit-show-time nil t))
   (when egit-show-time (setq egit-show-date t))
-  (save-excursion
-    (ewoc-refresh egit-ewoc)))
+  (egit-update-ewoc))
 
 (defun egit-show-commit-author ()
   "Show commit author in the commit history"
   (interactive)
   (setq egit-show-author (if egit-show-author nil t))
-  (save-excursion
-    (ewoc-refresh egit-ewoc)))
+  (egit-update-ewoc))
 
 (defun egit-show-commit-id ()
   "Show commit id in the commit history"
   (interactive)
   (setq egit-show-id (if egit-show-id nil t))
-  (save-excursion
-    (ewoc-refresh egit-ewoc)))
+  (egit-update-ewoc))
 
 (defun egit-show-all-commit ()
   "Show commit with all of the comments"
@@ -805,6 +836,53 @@ can fail if the file had a different name in the past"
         (select-window window))))
   (egit-refresh))
 
+(defun egit-bisect-bad ()
+  "Call git bisect good on the current commit"
+  (interactive)
+  (let* ((commits (egit-get-selection))
+         (ncommits (length commits))
+         (state 'bad))
+    (unless egit-bisect-mode (egit-bisect-start))
+    (dolist (c egit-commits)
+      (when (eql state 'bad)
+        (setf (egit--commit-bisect-state c) state))
+      (if (eql c (car commits)) (setq state t)))
+    (egit-update-ewoc)))
+
+(defun egit-bisect-good ()
+  "Call git bisect good on the current commit"
+  (interactive)
+  (let* ((commits (egit-get-selection))
+         (ncommits (length commits))
+         (state nil))
+    (unless egit-bisect-mode (egit-bisect-start))
+    (dolist (c egit-commits)
+      (if (eql c (car commits)) (setq state 'good))
+      (when (eql state 'good)
+        (setf (egit--commit-bisect-state c) state))
+      )
+    (egit-update-ewoc)))
+
+(defun egit-bisect-reset ()
+  "Call git bisect reset"
+  (interactive)
+  (if (not egit-bisect-mode)
+      (message "Not in bisect mode")
+    (dolist (c egit-commits)
+      (setf (egit--commit-bisect-state c) nil))
+    (setq egit-bisect-mode nil)
+    (egit-update-ewoc)))
+
+(defun egit-bisect-start ()
+  "Call git bisect start"
+  (interactive)
+  (if egit-bisect-mode
+      (message "Already in bisect mode")
+    (dolist (c egit-commits)
+      (setf (egit--commit-bisect-state c) t))
+    (setq egit-bisect-mode t)
+    (egit-update-ewoc)))
+
 (defun egit-show-current-line-info ()
   "Show current commit info"
   (interactive)
@@ -830,10 +908,8 @@ can fail if the file had a different name in the past"
 (defun egit-occur (regex)
   "Highlight commits whose comments match a regular expression"
   (interactive "sSearch Regex: ")
-  (save-excursion
-    (setq egit-highlight-regex 
-          (if (string= regex "") nil regex))
-    (ewoc-refresh egit-ewoc)))
+  (setq egit-highlight-regex (if (string= regex "") nil regex))
+  (egit-update-ewoc))
 
 (unless nil ; egit-mode-map
   (let ((map (make-keymap)))
@@ -857,6 +933,11 @@ can fail if the file had a different name in the past"
       (define-key map "t" 'egit-tag)
       (define-key map "T" 'egit-delete-tag)
       (define-key map "v" 'egit-checkout-file-from-history)
+      (define-key map "Bg" 'egit-bisect-good)
+      (define-key map "Bb" 'egit-bisect-bad)
+      (define-key map "Bs" 'egit-bisect-start)
+      (define-key map "Bq" 'egit-bisect-reset)
+      (define-key map "Br" 'egit-bisect-reset)
       (define-key map "" 'egit-show-all-commit)
       (define-key map [mouse-1] 'egit-mouse-click)
       (define-key map [up] 'egit-previous-line)
@@ -881,6 +962,11 @@ can fail if the file had a different name in the past"
       "--------"
       ["Revert"          egit-revert t]
       ["Cherry-Pick"     egit-cherry-pick t]
+      ("Bisect"
+       ["Start" egit-bisect-start]
+       ["Mark Good" egit-bisect-good]
+       ["Mark Bad" egit-bisect-bad]
+       ["Reset/Quit" egit-bisect-reset])
       "--------"
       ["Visit Historical File"  egit-checkout-file-from-history t]
       "--------"
@@ -928,6 +1014,9 @@ can fail if the file had a different name in the past"
   (make-local-variable 'egit-show-time)
   (make-local-variable 'egit-show-author)
   (make-local-variable 'egit-show-id)
+  (make-local-variable 'egit-bisect-mode)
+  (make-local-variable 'egit-bisect-good-commit)
+  (make-local-variable 'egit-bisect-bad-commit)
   (setq egit-hash-map (make-hash-table :test 'equal
                                        :size (length commits)))
   ; put all of the commits in a hash table keyed on sha1
@@ -959,6 +1048,9 @@ can fail if the file had a different name in the past"
         egit-show-time nil
         egit-show-author t
         egit-show-id nil
+        egit-bisect-mode nil
+        egit-bisect-good-commit nil
+        egit-bisect-bad-commit nil
         egit-max-subject-length (egit-largest-commit-subject commits)
         egit-ewoc (ewoc-create 'egit-pretty-printer)
         egit-current-overlay (make-overlay 0 0))
