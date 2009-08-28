@@ -900,7 +900,7 @@ can fail if the file had a different name in the past"
          (commits 
           (if egit-log-file
               (egit-parse-file-log (expand-file-name egit-log-file))
-               (egit-parse-log ref egit-max-commits))))
+            (egit-parse-log ref egit-max-commits))))
     (setq buffer-read-only nil)
     (egit-clear-other-windows)
     (egit-mode commits ref dir egit-max-commits egit-log-file)))
@@ -1100,13 +1100,13 @@ can fail if the file had a different name in the past"
   "Start up egit limited to directory"
   (interactive
    (list
-    (let ((dir (file-name-directory buffer-file-name)))
-      (if buffer-file-name
+    (if buffer-file-name
+        (let ((dir (file-name-directory buffer-file-name)))
           (read-directory-name
            "Egit log of directory: " 
-           dir dir t nil)
+           dir dir t nil))
       (read-directory-name
-       "Egit log of directory: " nil nil t nil)))))
+       "Egit log of directory: " nil nil t nil))))
   (egit-file dir))
 
 (defun egit-file (file)
