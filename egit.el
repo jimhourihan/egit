@@ -309,10 +309,10 @@
   "Read commit log"
   (if (and n (> n 0))
       (git-run-command-buffer egit-log-buffer 
-                              "log" "--parents" "--decorate" 
+                              "log" "--parents" "--decorate=full" 
                               (format "-%d" n) ref-start)
     (git-run-command-buffer egit-log-buffer 
-                            "log" "--parents" "--decorate" ref-start))
+                            "log" "--parents" "--decorate=full" ref-start))
   (save-excursion
     (let ((buffer (get-buffer-create egit-log-buffer))
           (commits nil))
@@ -335,7 +335,7 @@
 (defun egit-parse-file-log (file)
   "Read commit log for a specific file"
   (git-run-command-buffer egit-log-buffer 
-                          "log" "--decorate" "--follow" "--parents" file)
+                          "log" "--decorate=full" "--follow" "--parents" file)
   (save-excursion
     (let ((buffer (get-buffer-create egit-log-buffer))
           (commits nil))
