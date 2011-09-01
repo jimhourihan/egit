@@ -994,7 +994,10 @@ can fail if the file had a different name in the past"
     max))
 
 (defun egit-mode (commits ref dir n &optional file)
-  "Mode for git commit logs"
+  "Mode for git commit logs.
+
+\\{egit-mode-map}
+"
   (interactive)
   (setq buffer-read-only nil)
   (erase-buffer)
