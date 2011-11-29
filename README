@@ -56,7 +56,6 @@ TODO
  - show list of authors/sign-offs related to commits
  - make occur more useful
  - speed up 
- - add "more" buttons to end of ewoc to load more commits
  - lazy resolve parent commits
  - make delete tag default to one of the current commit tags
 
