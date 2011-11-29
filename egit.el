@@ -62,7 +62,9 @@
 ;; search for "cherry", etc.
 ;;
 ;; Start up time can be significant when 10s of thousands of commits are
-;; being displayed. Unfortunately, this is not an unusual situtation. 
+;; being displayed so the default is 500. You can increase that after the
+;; fact by clicking on the number of commits message at the end of the
+;; buffer. 
 ;;
 ;; TODO
 ;;  - graph representation along the left of the commit buffer
@@ -73,7 +75,6 @@
 ;;  - show list of authors/sign-offs related to commits
 ;;  - make occur more useful
 ;;  - speed up 
-;;  - add "more" buttons to end of ewoc to load more commits
 ;;  - lazy resolve parent commits
 ;;  - make delete tag default to one of the current commit tags
 ;;
@@ -122,6 +123,10 @@
 
 (defface egit-head-face 
   '((t (:inherit 'egit-base-face :background "green" :box t))) "egit: head"
+  :group 'egit)
+
+(defface egit-merge-base-face 
+  '((t (:inherit 'egit-base-face :forground "white" :box t))) "egit: merge-base"
   :group 'egit)
 
 (defface egit-highlight-face 
@@ -199,6 +204,7 @@
 (defstruct egit--commit
   id
   tag
+  merge-bases
   refs
   parents
   children
@@ -400,10 +406,39 @@
       (kill-buffer egit-tag-buffer)
       tags)))
 
-(defun egit-get-branches ()
-  "Returns a list: (current-branch (b1 b2 b3 ...)) including remote tracking branches"
+(defun egit-get-merge-base (branch current-branch)
+  "Returns a pair (branch . sha1)"
+  (git-run-command-buffer egit-temp-buffer "merge-base" branch current-branch)
+  (with-current-buffer egit-temp-buffer
+    (cons (substring (buffer-string) 0 -1) branch)))
+
+(defun egit-get-merge-bases ()
+  "Returns a list of pairs ((branch . id) ...)"
   (interactive)
-  (git-run-command-buffer egit-branch-buffer "branch" "-a")
+  (let* ((branches (egit-get-branches ""))
+         (current-branch (car branches))
+         (other-branches (car (cdr branches)))
+         (ids nil))
+    (dolist (b other-branches)
+      (setq ids (cons (egit-get-merge-base b current-branch) ids)))
+    ids))
+
+(defun egit-update-merge-bases ()
+  "Sets merge base info on existing ewoc structures"
+  (interactive)
+  (let ((merge-bases (egit-get-merge-bases)))
+    (dolist (c egit-commits)
+      (dolist (a merge-bases)
+        (when (string= (egit--commit-id c) (car a))
+          (setf (egit--commit-merge-bases c) 
+                (cons (cdr a) (egit--commit-merge-bases c))))))))
+
+(defun egit-get-branches (&optional local-only)
+  "Returns a list: (current-branch (b1 b2 b3 ...)) including remote tracking branches"
+  (interactive "M")
+  (if local-only
+      (git-run-command-buffer egit-branch-buffer "branch")
+    (git-run-command-buffer egit-branch-buffer "branch" "-a"))
   (with-current-buffer egit-branch-buffer
     (goto-char (point-min))
     (let ((current-branch nil)
@@ -446,10 +481,14 @@
   (let* ((s (egit--commit-subject commit))
          (refs (egit--commit-refs commit))
          (mark (egit--commit-mark commit))
+         (merge-bases (egit--commit-merge-bases commit))
          (date (egit--commit-date commit))
          (bisect-state (egit--commit-bisect-state commit))
          (author (egit--commit-author commit))
          (v s))
+    (when (and egit-show-branch-points merge-bases)
+      (dolist (b merge-bases)
+        (setq v (concat (propertize (concat ">" b) 'face 'egit-merge-base-face) " " v))))
     (when egit-highlight-regex
       (dolist (l (egit--commit-comments commit))
         (when (string-match egit-highlight-regex l)
@@ -529,6 +568,15 @@
   "Show commit author in the commit history"
   (interactive)
   (setq egit-show-author (if egit-show-author nil t))
+  (egit-update-ewoc))
+
+(defun egit-show-commit-branch-points ()
+  "Show branch points from commits"
+  (interactive)
+  (setq egit-show-branch-points (if egit-show-branch-points nil t))
+  (unless egit-branch-points
+    (setq egit-branch-points t)
+    (egit-update-merge-bases))
   (egit-update-ewoc))
 
 (defun egit-show-commit-id ()
@@ -938,6 +986,7 @@ can fail if the file had a different name in the past"
       (define-key map "t" 'egit-tag)
       (define-key map "T" 'egit-delete-tag)
       (define-key map "v" 'egit-checkout-file-from-history)
+      (define-key map "b" 'egit-show-commit-branch-points)
       (define-key map "Bg" 'egit-bisect-good)
       (define-key map "Bb" 'egit-bisect-bad)
       (define-key map "Bs" 'egit-bisect-start)
@@ -957,6 +1006,7 @@ can fail if the file had a different name in the past"
       ["Display Date+Time"  egit-show-commit-time [:selected '(lambda () egit-show-time)]]
       ["Display Author"  egit-show-commit-author [:selected '(lambda () egit-show-author)]]
       ["Display SHA1"    egit-show-commit-id [:selected '(lambda () egit-show-id)]]
+      ["Display Branch Points" egit-show-commit-branch-points [:selected '(lambda () egit-show-branch-points)]]
       "--------"
       ["Show Comments"   egit-show-all-commit t]
       ["Show Diffs"      egit-show-diff-commit t]
@@ -1031,6 +1081,8 @@ can fail if the file had a different name in the past"
   (make-local-variable 'egit-show-time)
   (make-local-variable 'egit-show-author)
   (make-local-variable 'egit-show-id)
+  (make-local-variable 'egit-show-branch-points)
+  (make-local-variable 'egit-branch-points)
   (make-local-variable 'egit-bisect-mode)
   (make-local-variable 'egit-bisect-good-commit)
   (make-local-variable 'egit-bisect-bad-commit)
@@ -1065,6 +1117,8 @@ can fail if the file had a different name in the past"
         egit-show-time nil
         egit-show-author t
         egit-show-id nil
+        egit-show-branch-points nil
+        egit-branch-points nil
         egit-bisect-mode nil
         egit-bisect-good-commit nil
         egit-bisect-bad-commit nil
