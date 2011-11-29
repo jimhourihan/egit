@@ -126,7 +126,7 @@
   :group 'egit)
 
 (defface egit-merge-base-face 
-  '((t (:inherit 'egit-base-face :forground "white" :box t))) "egit: merge-base"
+  '((t (:inherit 'egit-base-face :background "green3" :box t))) "egit: merge-base"
   :group 'egit)
 
 (defface egit-highlight-face 
