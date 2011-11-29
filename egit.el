@@ -420,7 +420,8 @@
          (other-branches (car (cdr branches)))
          (ids nil))
     (dolist (b other-branches)
-      (setq ids (cons (egit-get-merge-base b current-branch) ids)))
+      (when (not (string= b egit-top))
+        (setq ids (cons (egit-get-merge-base b egit-top) ids))))
     ids))
 
 (defun egit-update-merge-bases ()
