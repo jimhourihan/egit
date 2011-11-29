@@ -87,6 +87,7 @@
 
 (defvar egit-mode-map nil "Mode map for egit mode")
 (defvar egit-mode-menu nil "Menu for egit mode")
+(defvar egit-default-max-commits 500 "Default number of commits to show")
 
 (defface egit-base-face
   '((t (:inherit 'variable-pitch))) "egit: base"
@@ -166,6 +167,10 @@
 
 (defface egit-more-face
   '((t (:inherit 'egit-base-face :foreground "blue"))) "egit: more"
+  :group 'egit)
+
+(defface egit-more-mouse-face
+  '((t (:inherit 'egit-more-face :underline t))) "egit: more mouse"
   :group 'egit)
 
 (defface egit-diff-diff-face 
@@ -993,6 +998,15 @@ can fail if the file had a different name in the past"
           (setq max l))))
     max))
 
+(defun egit-get-more-commits ()
+  (interactive)
+  (let ((saved-node-num egit-max-commits))
+    (setq egit-max-commits (* egit-max-commits 2))
+    (egit-refresh)
+    (ewoc-goto-node egit-ewoc (ewoc-nth egit-ewoc saved-node-num))
+    (egit-current-line-decoration)
+    (egit-show-commit nil)))
+
 (defun egit-mode (commits ref dir n &optional file)
   "Mode for git commit logs.
 
@@ -1083,10 +1097,17 @@ can fail if the file had a different name in the past"
                                  (if (> ncommits 1) "s" "")) 
                          )
                  (if (and egit-max-commits (> egit-max-commits 0))
-                     (format (propertize "\n-- Limited to last %d commits --"
-                                         'face 'egit-more-face)
-                             egit-max-commits)
-                   "")))
+                     (let ((map (make-sparse-keymap)))
+                       (define-key map [mouse-1] 'egit-get-more-commits)
+                       (define-key map [mouse-2] 'egit-get-more-commits)
+                       (define-key map "" 'egit-get-more-commits)
+                       (format (concat "\n" (propertize " Showing %d Commits, Click For More " 
+                                                        'face 'egit-more-face
+                                                        'keymap map
+                                                        'mouse-face 'egit-more-mouse-face))
+                             egit-max-commits))
+                   ""))
+    )
   (message "Refreshing egit-ewoc...")
   (ewoc-refresh egit-ewoc)
   (if (not truncate-lines) (toggle-truncate-lines))
@@ -1145,7 +1166,7 @@ N commits shown. A prefix argument will query for all parameters otherwise
      (if (not current-prefix-arg)
          (list default-directory
                (car (egit-get-branches))
-               0)
+               egit-default-max-commits)
        (list 
         (let ((dir (read-directory-name "Directory in repo: " nil nil t nil)))
           (cd dir)
