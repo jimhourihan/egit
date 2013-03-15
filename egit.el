@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2008 Jim Hourihan
 
-;; Version: 1.0
+;; Version: 1.1
 
 ;; This program is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by the
@@ -467,6 +467,14 @@
       (setq i (+ i 1))
       (ewoc-enter-last ewoc c))))
 
+(defun egit-create-temp-buffer-and-window (buffer)
+  (let* ((window (get-largest-window))
+         (new-window (split-window window)))
+    (set-window-buffer new-window buffer)
+    (select-window new-window)
+    (fit-window-to-buffer new-window temp-buffer-max-height)
+    (select-window window)))
+
 (defun egit-day-string (commit)
   (format-time-string "%Y-%m-%d" (egit--commit-date commit)))
 
@@ -530,7 +538,7 @@
                                   'egit-author-face)
                       " " 
                       v)))
-    (insert (concat (if mark "* " "  ") v))))
+    (insert (concat (if mark "* " "  ") v "\n"))))
 
 (defun egit-current-line-decoration ()
   (move-overlay egit-current-overlay 
@@ -612,6 +620,8 @@
     (egit-delete-window-buffer egit-temp-buffer)
     (egit-delete-window-buffer egit-commit-buffer)))
 
+
+
 (defun egit-show-commit (long)
   "Show commit by ref/hash"
   (let* ((node (ewoc-locate egit-ewoc))
@@ -659,12 +669,7 @@
       ;(when highlight-regex
       ;  (himark-regexp highlight-regex))
       (setq buffer-read-only t)
-      (let* ((window (get-largest-window))
-             (new-window (split-window window)))
-        (set-window-buffer new-window buffer)
-        (select-window new-window)
-        (resize-temp-buffer-window)
-        (select-window window)))))
+      (egit-create-temp-buffer-and-window buffer))))
 
 (defun egit-show-files-commit ()
   "Show files changed by commit"
@@ -679,12 +684,7 @@
         (egit-diff-mode)
         (setq buffer-read-only t)
         (goto-char (point-min))
-        (let* ((window (get-largest-window))
-               (new-window (split-window window)))
-          (set-window-buffer new-window buffer)
-          (select-window new-window)
-          (resize-temp-buffer-window)
-          (select-window window))))))
+        (egit-create-temp-buffer-and-window buffer)))))
 
 (defun egit-show-diff-commit ()
   "Show diff of a commit"
@@ -699,12 +699,7 @@
         (egit-diff-mode)
         (setq buffer-read-only t)
         (goto-char (point-min))
-        (let* ((window (get-largest-window))
-               (new-window (split-window window)))
-          (set-window-buffer new-window buffer)
-          (select-window new-window)
-          (resize-temp-buffer-window)
-          (select-window window))))))
+        (egit-create-temp-buffer-and-window buffer)))))
 
 (defun egit-mark ()
   "Mark active commit"
@@ -754,13 +749,7 @@
                                                 "cherry-pick" "-x"
                                                 (egit--commit-id c))))
             (with-current-buffer buffer
-              (let* ((window (get-largest-window))
-                     (new-window (split-window window)))
-                (set-window-buffer new-window buffer)
-                (select-window new-window)
-                (resize-temp-buffer-window)
-                (select-window window))
-              ))))
+              (egit-create-temp-buffer-and-window buffer)))))
       (if (eq doit 'bad)
           (message "Don't cherry pick off the current branch")
         (message "Cancelled"))))
@@ -787,12 +776,7 @@
                                                 "revert" "-n"
                                                 (egit--commit-id c))))
             (with-current-buffer buffer
-              (let* ((window (get-largest-window))
-                     (new-window (split-window window)))
-                (set-window-buffer new-window buffer)
-                (select-window new-window)
-                (resize-temp-buffer-window)
-                (select-window window))
+              (egit-create-temp-buffer-and-window buffer)
               ))))
       (message "Cancelled")))
 
@@ -834,12 +818,7 @@ can fail if the file had a different name in the past"
                  (set-visited-file-name fname)
                  (goto-char (point-min))
                  (set-buffer-modified-p nil)
-                 (let* ((window (get-largest-window))
-                        (new-window (split-window window)))
-                   (set-window-buffer new-window buffer)
-                   (select-window new-window)
-                   (resize-temp-buffer-window)
-                   (select-window window))
+                 (egit-create-temp-buffer-and-window buffer)
                  ))))
        (message "Cancelled"))))
    
@@ -864,12 +843,7 @@ can fail if the file had a different name in the past"
                                          (egit--commit-id commit) 
                                          "-m" ann)))
     (with-current-buffer buffer
-      (let* ((window (get-largest-window))
-             (new-window (split-window window)))
-        (set-window-buffer new-window buffer)
-        (select-window new-window)
-        (resize-temp-buffer-window)
-        (select-window window))))
+      (egit-create-temp-buffer-and-window buffer)))
   (egit-refresh))
 
 (defun egit-delete-tag (name)
@@ -882,12 +856,7 @@ can fail if the file had a different name in the past"
                                         "tag" 
                                         "-d" name)))
     (with-current-buffer buffer
-      (let* ((window (get-largest-window))
-             (new-window (split-window window)))
-        (set-window-buffer new-window buffer)
-        (select-window new-window)
-        (resize-temp-buffer-window)
-        (select-window window))))
+      (egit-create-temp-buffer-and-window buffer)))
   (egit-refresh))
 
 (defun egit-bisect-bad ()
@@ -1083,6 +1052,7 @@ can fail if the file had a different name in the past"
   (make-local-variable 'egit-show-author)
   (make-local-variable 'egit-show-id)
   (make-local-variable 'egit-show-branch-points)
+  (make-local-variable 'egit-show-merge-commits)
   (make-local-variable 'egit-branch-points)
   (make-local-variable 'egit-bisect-mode)
   (make-local-variable 'egit-bisect-good-commit)
@@ -1118,13 +1088,14 @@ can fail if the file had a different name in the past"
         egit-show-time nil
         egit-show-author t
         egit-show-id nil
+        egit-show-merge-commits t
         egit-show-branch-points nil
         egit-branch-points nil
         egit-bisect-mode nil
         egit-bisect-good-commit nil
         egit-bisect-bad-commit nil
         egit-max-subject-length (egit-largest-commit-subject commits)
-        egit-ewoc (ewoc-create 'egit-pretty-printer)
+        egit-ewoc (ewoc-create 'egit-pretty-printer "" "" t)
         egit-current-overlay (make-overlay 0 0))
   (overlay-put egit-current-overlay 'face egit-current-line-face-overlay)
   (egit-populate-ewoc egit-ewoc commits)
@@ -1150,8 +1121,9 @@ can fail if the file had a different name in the past"
                          (egit-heading "       Top:") " " egit-top ", " 
                          (format "%d commit%s\n" ncommits
                                  (if (> ncommits 1) "s" "")) 
+                         "\n"
                          )
-                 (if (and egit-max-commits (> egit-max-commits 0))
+                 (if (and egit-max-commits (= egit-max-commits 0))
                      (let ((map (make-sparse-keymap)))
                        (define-key map [mouse-1] 'egit-get-more-commits)
                        (define-key map [mouse-2] 'egit-get-more-commits)

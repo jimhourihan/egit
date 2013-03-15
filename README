@@ -59,5 +59,3 @@ TODO
  - lazy resolve parent commits
  - make delete tag default to one of the current commit tags
 
-WISH
- - incrementally load commits 
