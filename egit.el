@@ -472,7 +472,7 @@
          (new-window (split-window window)))
     (set-window-buffer new-window buffer)
     (select-window new-window)
-    (fit-window-to-buffer new-window temp-buffer-max-height)
+    (fit-window-to-buffer new-window 20)
     (select-window window)))
 
 (defun egit-day-string (commit)
@@ -1123,7 +1123,7 @@ can fail if the file had a different name in the past"
                                  (if (> ncommits 1) "s" "")) 
                          "\n"
                          )
-                 (if (and egit-max-commits (= egit-max-commits 0))
+                 (if (and egit-max-commits (= ncommits egit-max-commits))
                      (let ((map (make-sparse-keymap)))
                        (define-key map [mouse-1] 'egit-get-more-commits)
                        (define-key map [mouse-2] 'egit-get-more-commits)
@@ -1132,8 +1132,9 @@ can fail if the file had a different name in the past"
                                                         'face 'egit-more-face
                                                         'keymap map
                                                         'mouse-face 'egit-more-mouse-face))
-                             egit-max-commits))
-                   ""))
+                               egit-max-commits))
+                   (egit-heading (format "\nShowing All %d Commits" ncommits)))
+                 )
     )
   (message "Refreshing egit-ewoc...")
   (ewoc-refresh egit-ewoc)
