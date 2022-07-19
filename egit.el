@@ -91,91 +91,87 @@
 (defvar egit-default-max-commits 500 "Default number of commits to show")
 
 (defface egit-base-face
-  '((t (:inherit 'variable-pitch))) "egit: base"
+  '((t (:inherit variable-pitch))) "egit: base"
   :group 'egit)
 
-;(defface egit-base-face
-  ;'((t ())) "egit: base"
-  ;:group 'egit)
-
 (defface egit-bisect-unknown-face 
-  '((t (:inherit 'fixed-pitch :background "light blue" :box nil))) 
+  '((t (:inherit fixed-pitch :background "light blue" :box nil))) 
   "egit: bisect unknown"
   :group 'egit)
 
 (defface egit-bisect-good-face 
-  '((t (:inherit 'fixed-pitch :background "pale green" :box nil))) 
+  '((t (:inherit fixed-pitch :background "pale green" :box nil))) 
   "egit: bisect good"
   :group 'egit)
 
 (defface egit-bisect-bad-face 
-  '((t (:inherit 'fixed-pitch :background "tomato" :box nil))) 
+  '((t (:inherit fixed-pitch :background "tomato" :box nil))) 
   "egit: bisect bad"
   :group 'egit)
   
 (defface egit-tag-face 
-  '((t (:inherit 'egit-base-face :background "yellow" :box t))) "egit: tag"
+  '((t (:inherit egit-base-face :background "yellow" :box t))) "egit: tag"
   :group 'egit)
 
 (defface egit-remote-face 
-  '((t (:inherit 'egit-base-face :background "bisque" :box t))) "egit: remote"
+  '((t (:inherit egit-base-face :background "bisque" :box t))) "egit: remote"
   :group 'egit)
 
 (defface egit-head-face 
-  '((t (:inherit 'egit-base-face :background "green" :box t))) "egit: head"
+  '((t (:inherit egit-base-face :background "green" :box t))) "egit: head"
   :group 'egit)
 
 (defface egit-merge-base-face 
-  '((t (:inherit 'egit-base-face :background "green3" :box t))) "egit: merge-base"
+  '((t (:inherit egit-base-face :background "green3" :box t))) "egit: merge-base"
   :group 'egit)
 
 (defface egit-highlight-face 
-  '((t (:inherit 'egit-base-face :background "darkseagreen1")))
+  '((t (:inherit egit-base-face :background "darkseagreen1")))
   "egit: highlight"
   :group 'egit)
 
 (defface egit-merged-commit-face
-  '((t (:inherit 'egit-base-face :background "SkyBlue" :box t))) "egit: merged"
+  '((t (:inherit egit-base-face :background "SkyBlue" :box t))) "egit: merged"
   :group 'egit)
 
 (defface egit-marked-face
-  '((t (:inherit 'egit-base-face :background "orange" :box t))) "egit: marked"
+  '((t (:inherit egit-base-face :background "orange" :box t))) "egit: marked"
   :group 'egit)
 
 (defface egit-date-face
-  '((t (:inherit 'egit-base-face :foreground "grey25"))) "egit: date"
+  '((t (:inherit egit-base-face :foreground "grey25"))) "egit: date"
   :group 'egit)
 
 (defface egit-subdued-date-face
-  '((t (:inherit 'egit-base-face :foreground "grey60"))) "egit: date subdued"
+  '((t (:inherit egit-base-face :foreground "grey60"))) "egit: date subdued"
   :group 'egit)
 
 (defface egit-author-face
-  '((t (:inherit 'fixed-pitch :foreground "grey25"))) "egit: date"
+  '((t (:inherit fixed-pitch :foreground "grey25"))) "egit: date"
   :group 'egit)
 
 (defface egit-subdued-author-face
-  '((t (:inherit 'fixed-pitch :foreground "grey60"))) "egit: date subdued"
+  '((t (:inherit fixed-pitch :foreground "grey60"))) "egit: date subdued"
   :group 'egit)
 
 (defface egit-id-face
-  '((t (:inherit 'fixed-pitch))) "egit: id"
+  '((t (:inherit fixed-pitch))) "egit: id"
   :group 'egit)
 
 (defface egit-file-name-face
-  '((t (:inherit 'default :foreground "blue"))) "egit: file-name"
+  '((t (:inherit default :foreground "blue"))) "egit: file-name"
   :group 'egit)
 
 (defface egit-heading-face
-  '((t (:inherit 'bold))) "egit: heading"
+  '((t (:inherit bold))) "egit: heading"
   :group 'egit)
 
 (defface egit-more-face
-  '((t (:inherit 'egit-base-face :foreground "blue"))) "egit: more"
+  '((t (:inherit egit-base-face :foreground "blue"))) "egit: more"
   :group 'egit)
 
 (defface egit-more-mouse-face
-  '((t (:inherit 'egit-more-face :underline t))) "egit: more mouse"
+  '((t (:inherit egit-more-face :underline t))) "egit: more mouse"
   :group 'egit)
 
 (defface egit-diff-diff-face 
