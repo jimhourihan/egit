@@ -195,7 +195,11 @@
 (defface egit-diff-context-face '((t (:foreground "magenta4"))) "egit: diff context"
   :group 'egit)
 
-(defvar egit-current-line-face-overlay '(:background "grey70"))
+(defcustom egit-current-line-bg-color
+  "grey70"
+  "Background color used to highlight the current line"
+  :type 'color
+  :group 'egit)
 
 (defstruct egit--commit
   id
@@ -1093,7 +1097,9 @@ can fail if the file had a different name in the past"
         egit-max-subject-length (egit-largest-commit-subject commits)
         egit-ewoc (ewoc-create 'egit-pretty-printer "" "" t)
         egit-current-overlay (make-overlay 0 0))
-  (overlay-put egit-current-overlay 'face egit-current-line-face-overlay)
+  (overlay-put egit-current-overlay 'face
+               (list :background egit-current-line-bg-color
+                     :extend))
   (egit-populate-ewoc egit-ewoc commits)
   (setq header-line-format
         (concat
